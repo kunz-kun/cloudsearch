@@ -1,0 +1,19 @@
+{
+  "port": 8787,
+  "host": "127.0.0.1",
+  "cacheTTL": 300,
+  "timeout": 45000,
+  "retries": 1,
+  "upstreams": [
+    {
+      "name": "PanSou 主站",
+      "base": "https://pansou.app",
+      "enabled": true
+    },
+    {
+      "name": "PanSou 镜像",
+      "base": "https://so.252035.xyz",
+      "enabled": true
+    }
+  ]
+}
