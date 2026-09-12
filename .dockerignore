@@ -1,0 +1,14 @@
+.git
+.gitattributes
+.gitignore
+.workbuddy-ai
+.chrome-tmp*
+shots
+node_modules
+npm-debug.log*
+server.log
+*.log
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md

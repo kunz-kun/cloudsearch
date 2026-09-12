@@ -1,0 +1,22 @@
+services:
+  cloudsearch:
+    build: .
+    image: cloudsearch:latest
+    container_name: cloudsearch
+    restart: unless-stopped
+
+    # 宿主端口可通过环境变量覆盖：CS_PORT=9000 docker compose up -d
+    ports:
+      - "${CS_PORT:-8787}:8787"
+
+    environment:
+      # 容器内必须监听 0.0.0.0
+      HOST: 0.0.0.0
+      PORT: 8787
+
+    # 日志轮转，避免长期运行撑满磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

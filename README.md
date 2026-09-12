@@ -16,6 +16,77 @@ node server.js
 
 端口被占用时会自动顺延到 8788、8789……
 
+## Docker 部署（Linux VPS）
+
+### 方式一：docker compose（推荐）
+
+```bash
+git clone https://github.com/kunz-kun/cloudsearch.git
+cd cloudsearch
+docker compose up -d --build
+```
+
+默认映射到宿主的 `8787` 端口。想换端口：
+
+```bash
+CS_PORT=9000 docker compose up -d
+```
+
+查看状态与日志：
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+停止 / 更新：
+
+```bash
+docker compose down
+git pull && docker compose up -d --build
+```
+
+### 方式二：docker run
+
+```bash
+git clone https://github.com/kunz-kun/cloudsearch.git
+cd cloudsearch
+docker build -t cloudsearch .
+docker run -d \
+  --name cloudsearch \
+  --restart unless-stopped \
+  -p 8787:8787 \
+  cloudsearch
+```
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `HOST` | 本地 `127.0.0.1`；镜像内 `0.0.0.0` | 监听地址。**容器里必须是 `0.0.0.0`**，否则容器外访问不到 |
+| `PORT` | `8787` | 监听端口。一旦由环境变量指定，端口冲突时**不再自动顺延**，避免端口映射失效 |
+
+环境变量优先级高于 `config.json`。镜像内置 `HEALTHCHECK`，每 30 秒探活 `/api/health`，`docker ps` 可直接看到健康状态。
+
+### 放到公网前请注意
+
+- **本服务没有任何鉴权**——谁访问到你的地址，都能用你的服务器去搜网盘。建议只在内网使用，
+  或者在前端套一层带 Basic Auth 的反向代理。
+- 建议用 Nginx / Caddy 加 HTTPS，并配好防火墙，只放行需要的端口。
+- 上游是第三方公开服务，高频访问可能被限流；程序已内置 5 分钟结果缓存来缓解。
+
+### Nginx 反向代理示例
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
 ## 功能
 
 **搜索**
@@ -47,14 +118,17 @@ node server.js
 ## 目录结构
 
 ```
-network search/
-├── server.js        # 零依赖 Node 服务：静态托管 + 聚合代理 + 缓存
-├── config.json      # 端口、超时、上游源配置
+cloudsearch/
+├── server.js           # 零依赖 Node 服务：静态托管 + 聚合代理 + 缓存
+├── config.json         # 端口、超时、上游源配置
 ├── package.json
-├── public/
+├── public/             # 前端（原生 HTML / CSS / JS）
 │   ├── index.html
 │   ├── styles.css
 │   └── app.js
+├── Dockerfile          # 容器镜像构建
+├── docker-compose.yml  # 一键部署
+├── start.bat           # Windows 双击启动
 └── README.md
 ```
 
@@ -78,13 +152,19 @@ network search/
 
 | 字段 | 说明 |
 | --- | --- |
-| `port` / `host` | 本地监听地址 |
+| `port` / `host` | 监听地址，可被环境变量 `PORT` / `HOST` 覆盖 |
 | `cacheTTL` | 同一关键词的结果缓存秒数 |
 | `timeout` | 单个上游请求超时（毫秒） |
 | `retries` | 上游失败后的重试次数 |
 | `upstreams[].base` | 上游根地址，需实现 PanSou 兼容的 `/api/search` 与 `/api/health` |
 
 增加上游只需往 `upstreams` 里追加一项；自建 PanSou 服务也可以填进来。
+
+环境变量优先级高于配置文件：
+
+```bash
+HOST=0.0.0.0 PORT=9000 node server.js
+```
 
 ## 接口
 

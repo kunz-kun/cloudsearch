@@ -43,6 +43,11 @@ function loadConfig() {
 const CONFIG = loadConfig();
 const UPSTREAMS = CONFIG.upstreams.filter((u) => u && u.base && u.enabled !== false);
 
+// 环境变量优先于 config.json，便于容器化部署
+// Docker 里必须监听 0.0.0.0，否则容器外访问不到
+const PORT = Number(process.env.PORT) || CONFIG.port;
+const HOST = process.env.HOST || CONFIG.host;
+
 /* ------------------------------------------------------------------ *
  * 工具
  * ------------------------------------------------------------------ */
@@ -471,8 +476,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 function listen(port, attempt = 0) {
+  // 端口由环境变量指定时（容器部署）不做顺延，否则端口映射会失效
+  const allowFallback = !process.env.PORT;
+
   server.once('error', (err) => {
-    if (err.code === 'EADDRINUSE' && attempt < 10) {
+    if (err.code === 'EADDRINUSE' && allowFallback && attempt < 10) {
       console.log('端口 ' + port + ' 被占用，尝试 ' + (port + 1) + ' ...');
       listen(port + 1, attempt + 1);
     } else {
@@ -480,15 +488,29 @@ function listen(port, attempt = 0) {
       process.exit(1);
     }
   });
-  server.listen(port, CONFIG.host, () => {
-    const url = 'http://' + CONFIG.host + ':' + port;
+
+  server.listen(port, HOST, () => {
     console.log('');
     console.log('  🌙 云搜 CloudSearch 已启动');
-    console.log('  ➜  本地地址: ' + url);
+    console.log('  ➜  监听地址: ' + HOST + ':' + port);
+    if (HOST === '0.0.0.0') {
+      console.log('  ➜  容器/公网访问: http://<服务器IP>:' + port);
+    } else {
+      console.log('  ➜  本地访问: http://' + HOST + ':' + port);
+    }
     console.log('  ➜  上游源:   ' + UPSTREAMS.map((u) => u.name + ' (' + u.base + ')').join(', '));
     console.log('  ➜  缓存:     ' + CONFIG.cacheTTL + 's   超时: ' + CONFIG.timeout + 'ms');
     console.log('');
   });
 }
 
-listen(CONFIG.port);
+// 收到停止信号时优雅关闭（docker stop 会发 SIGTERM）
+['SIGTERM', 'SIGINT'].forEach((sig) => {
+  process.on(sig, () => {
+    console.log('\n收到 ' + sig + '，正在关闭服务…');
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 3000).unref();
+  });
+});
+
+listen(PORT);
