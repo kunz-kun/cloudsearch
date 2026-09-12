@@ -1,0 +1,69 @@
+# ============================================================
+# 云搜 CloudSearch — 带 HTTPS 与密码保护的完整部署
+# ============================================================
+#
+# 与 docker-compose.yml 二选一使用：
+#   docker compose -f docker-compose.caddy.yml up -d --build
+#
+# 使用前先在当前目录建一个 .env 文件（不要提交到 git）：
+#   DOMAIN=search.example.com
+#   AUTH_USER=kun
+#   AUTH_HASH=$2a$14$你的bcrypt哈希
+#
+# 生成哈希：
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext '你的密码'
+# ============================================================
+
+services:
+  cloudsearch:
+    build: .
+    image: cloudsearch:latest
+    container_name: cloudsearch
+    restart: unless-stopped
+
+    # 不再直接映射到宿主端口，只在内网暴露给 Caddy，
+    # 这样即使忘了配密码，外面也访问不到
+    expose:
+      - "8787"
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: cloudsearch-caddy
+    restart: unless-stopped
+
+    ports:
+      - "80:80"          # 证书签发与 HTTP 跳转
+      - "443:443"
+      - "443:443/udp"    # HTTP/3
+
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # 证书持久化，别删，否则重启要重新签发
+      - caddy_config:/config
+
+    environment:
+      # 这三个必须设置，缺失时 compose 会直接报错，避免裸奔上线
+      DOMAIN: "${DOMAIN:?请先在 .env 里设置 DOMAIN}"
+      AUTH_USER: "${AUTH_USER:?请先在 .env 里设置 AUTH_USER}"
+      AUTH_HASH: "${AUTH_HASH:?请先在 .env 里设置 AUTH_HASH}"
+      # 容器之间通过服务名互访
+      UPSTREAM: cloudsearch:8787
+
+    depends_on:
+      cloudsearch:
+        # 等云搜健康检查通过再启动，避免刚起来就 502
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:

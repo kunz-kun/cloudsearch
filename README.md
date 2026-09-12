@@ -71,11 +71,55 @@ docker run -d \
 ### 放到公网前请注意
 
 - **本服务没有任何鉴权**——谁访问到你的地址，都能用你的服务器去搜网盘。建议只在内网使用，
-  或者在前端套一层带 Basic Auth 的反向代理。
+  或者按下一节用 Caddy 套一层 Basic Auth。
 - 建议用 Nginx / Caddy 加 HTTPS，并配好防火墙，只放行需要的端口。
 - 上游是第三方公开服务，高频访问可能被限流；程序已内置 5 分钟结果缓存来缓解。
 
-### Nginx 反向代理示例
+### 加 HTTPS 与密码保护（Caddy，推荐）
+
+仓库自带 `Caddyfile` 和 `docker-compose.caddy.yml`，自动 HTTPS + 密码保护一次搞定。
+
+**第 1 步：生成密码哈希**
+
+```bash
+docker run --rm caddy:2-alpine caddy hash-password --plaintext '你的密码'
+```
+
+会输出一串 `$2a$14$...`，复制备用。
+
+**第 2 步：建一个 `.env` 文件**（别提交到 git）
+
+```bash
+DOMAIN=search.example.com
+AUTH_USER=kun
+AUTH_HASH=$2a$14$把刚才的哈希粘到这里
+```
+
+**第 3 步：启动**
+
+```bash
+docker compose -f docker-compose.caddy.yml up -d --build
+```
+
+这个 compose 文件里云搜**不再映射到宿主端口**，只在内网暴露给 Caddy——
+就算密码没配好，外面也碰不到。Caddy 会自动申请 Let's Encrypt 证书并把 HTTP 跳转到 HTTPS，
+证书存在 `caddy_data` 卷里（别删，删了重启要重新签发）。
+
+访问 `https://你的域名`，浏览器会先弹账号密码框。
+
+> **没有域名？** 把 `Caddyfile` 首行的 `{$DOMAIN}` 改成 `:80`，就只能走 HTTP 了。
+> Caddy 给纯 IP 签不了证书。
+
+**裸机部署**（已有 Caddy，不想用容器）：
+
+```bash
+export DOMAIN=search.example.com AUTH_USER=kun AUTH_HASH='$2a$14$...'
+caddy run --config Caddyfile
+```
+
+> 如果你的 Caddy 是 2.7 或更早版本，把 Caddyfile 里的 `basic_auth` 改成 `basicauth`。
+
+### Nginx 反向代理示例（备选）
 
 ```nginx
 location / {
@@ -119,16 +163,18 @@ location / {
 
 ```
 cloudsearch/
-├── server.js           # 零依赖 Node 服务：静态托管 + 聚合代理 + 缓存
-├── config.json         # 端口、超时、上游源配置
+├── server.js                # 零依赖 Node 服务：静态托管 + 聚合代理 + 缓存
+├── config.json              # 端口、超时、上游源配置
 ├── package.json
-├── public/             # 前端（原生 HTML / CSS / JS）
+├── public/                  # 前端（原生 HTML / CSS / JS）
 │   ├── index.html
 │   ├── styles.css
 │   └── app.js
-├── Dockerfile          # 容器镜像构建
-├── docker-compose.yml  # 一键部署
-├── start.bat           # Windows 双击启动
+├── Dockerfile               # 容器镜像构建
+├── docker-compose.yml       # 一键部署（直接暴露端口）
+├── docker-compose.caddy.yml # 带 HTTPS 与密码保护的部署
+├── Caddyfile                # Caddy 反代 + Basic Auth 配置
+├── start.bat                # Windows 双击启动
 └── README.md
 ```
 

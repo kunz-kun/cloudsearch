@@ -10,5 +10,7 @@ server.log
 *.log
 Dockerfile
 docker-compose.yml
+docker-compose.caddy.yml
+Caddyfile
 .dockerignore
 README.md

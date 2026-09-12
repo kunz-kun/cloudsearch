@@ -1,0 +1,53 @@
+# ============================================================
+# 云搜 CloudSearch — Caddy 反向代理配置（Basic Auth 密码保护）
+# ============================================================
+#
+# 需要三个环境变量：
+#   DOMAIN     你的域名，例如 search.example.com（需已解析到本机）
+#   AUTH_USER  登录用户名
+#   AUTH_HASH  密码的 bcrypt 哈希，生成方式见下
+#
+# 生成密码哈希：
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext '你的密码'
+#   或本机已装 caddy：caddy hash-password --plaintext '你的密码'
+#
+# 单独运行（裸机）：
+#   export DOMAIN=search.example.com AUTH_USER=kun AUTH_HASH='$2a$14$...'
+#   caddy run --config Caddyfile
+#
+# 配合 Docker Compose：
+#   docker compose -f docker-compose.caddy.yml up -d
+# ============================================================
+
+{$DOMAIN} {
+    # 域名解析到本机后，Caddy 会自动申请并续期 Let's Encrypt 证书
+    # 无域名时可把首行改成 ":80"，此时只能走 HTTP
+
+    encode gzip
+
+    # ---------------- 密码保护 ----------------
+    # Caddy 2.8 及以上用 basic_auth；
+    # 若你的 Caddy 是 2.7 或更早版本，请把 basic_auth 改成 basicauth
+    basic_auth {
+        {$AUTH_USER} {$AUTH_HASH}
+    }
+
+    # ---------------- 反向代理 ----------------
+    # 默认指向本机 8787；容器部署时由 compose 传入 UPSTREAM=cloudsearch:8787
+    reverse_proxy {$UPSTREAM:127.0.0.1:8787} {
+        # 一次搜索要并发请求多个上游，慢的时候要几十秒，超时必须给足，
+        # 否则 Caddy 会提前断开，前端只能看到 502
+        transport http {
+            response_header_timeout 120s
+            read_timeout 120s
+        }
+    }
+
+    # ---------------- 安全响应头 ----------------
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy no-referrer
+    }
+}
