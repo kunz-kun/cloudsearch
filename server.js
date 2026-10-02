@@ -82,6 +82,12 @@ function sendJson(res, status, payload) {
 }
 
 function readBody(req) {
+  // Vercel may parse JSON before invoking the function.
+  if (req.body && typeof req.body === 'object') return Promise.resolve(req.body);
+  if (typeof req.body === 'string') {
+    try { return Promise.resolve(JSON.parse(req.body)); }
+    catch { return Promise.resolve({}); }
+  }
   return new Promise((resolve) => {
     const chunks = [];
     let size = 0;
@@ -442,7 +448,7 @@ function serveStatic(req, res, pathname) {
  * 启动
  * ------------------------------------------------------------------ */
 
-const server = http.createServer(async (req, res) => {
+async function requestHandler(req, res) {
   const parsed = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const pathname = parsed.pathname;
 
@@ -473,7 +479,10 @@ const server = http.createServer(async (req, res) => {
     console.error('[error]', e);
     if (!res.headersSent) sendJson(res, 500, { code: 500, message: '服务内部错误：' + e.message });
   }
-});
+}
+
+module.exports = requestHandler;
+const server = http.createServer(requestHandler);
 
 function listen(port, attempt = 0) {
   // 端口由环境变量指定时（容器部署）不做顺延，否则端口映射会失效
@@ -505,6 +514,7 @@ function listen(port, attempt = 0) {
 }
 
 // 收到停止信号时优雅关闭（docker stop 会发 SIGTERM）
+if (require.main === module) {
 ['SIGTERM', 'SIGINT'].forEach((sig) => {
   process.on(sig, () => {
     console.log('\n收到 ' + sig + '，正在关闭服务…');
@@ -514,3 +524,4 @@ function listen(port, attempt = 0) {
 });
 
 listen(PORT);
+}

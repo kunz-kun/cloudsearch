@@ -16,6 +16,21 @@ node server.js
 
 端口被占用时会自动顺延到 8788、8789……
 
+## Vercel 部署
+
+在 Vercel 中选择 **Add New → Project**，导入 `kunz-kun/cloudsearch`：
+
+- Framework Preset：**Other**
+- Root Directory：仓库根目录（无需修改）
+- Node.js Version：**22.x** 或更新的受支持版本
+- Build Command：留空；Output Directory：`public`（由 `vercel.json` 配置）
+- 无需环境变量，直接点击 **Deploy**
+
+静态页面由 Vercel 托管，`/api/*` 由 Node 函数处理；函数最长运行 120 秒，覆盖默认上游超时与一次重试。
+部署成功后访问首页、`/api/config`、`/api/health`，并执行一次搜索验证。连接 GitHub 后，推送 `main` 会自动更新生产部署。
+搜索缓存存放在函数实例内存中，冷启动或实例切换后会清空；第三方上游可用性以实际健康检查为准。
+本地与 Docker 的 `node server.js` 启动方式保持兼容。
+
 ## Docker 部署（Linux VPS）
 
 ### 方式一：docker compose（推荐）
