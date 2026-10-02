@@ -5,6 +5,7 @@
   "description": "云搜 CloudSearch — 聚合网盘资源搜索应用（零依赖）",
   "main": "server.js",
   "scripts": {
+    "test": "node --test test/*.test.cjs",
     "start": "node server.js",
     "dev": "node server.js"
   },

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>访问密码 · 云搜</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:linear-gradient(135deg,#eef8ff,#f5f3ff);font-family:system-ui,sans-serif;color:#172338;padding:24px}.card{width:100%;max-width:400px;background:white;padding:36px;border-radius:24px;box-shadow:0 16px 60px #24335412}.brand{color:#0284c7;font-weight:700}h1{font-size:26px;margin:24px 0 10px}p{color:#64748b;font-size:14px;line-height:1.7}label{display:block;margin:28px 0 8px;font-size:14px;font-weight:600}input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:12px;font-size:16px}input:focus{outline:2px solid #38bdf8;outline-offset:2px}button{margin-top:16px;width:100%;padding:13px;border:0;border-radius:12px;background:#0284c7;color:white;font-size:16px;cursor:pointer}button:disabled{opacity:.6}#message{min-height:24px;color:#b91c1c;margin-bottom:0}
+</style></head>
+<body><main class="card"><div class="brand">云搜 CloudSearch</div><h1>输入访问密码</h1><p>验证后即可搜索网盘资源。登录状态保留 7 天。</p><form id="login"><label for="password">访问密码</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus maxlength="1024"><button type="submit">进入云搜</button><p id="message" role="status" aria-live="polite"></p></form></main>
+<script>
+const form=document.getElementById('login'),button=form.querySelector('button'),message=document.getElementById('message');
+form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;message.textContent='';try{const response=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:form.password.value})});const result=await response.json();if(response.ok){location.replace('/');return}message.textContent=result.message||'登录失败，请重试。';form.password.value='';form.password.focus()}catch{message.textContent='连接失败，请稍后重试。'}finally{button.disabled=false}});
+</script></body></html>

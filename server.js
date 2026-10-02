@@ -10,6 +10,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const authGate = require('./auth');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -424,7 +425,7 @@ function serveStatic(req, res, pathname) {
           res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('404 Not Found');
           return;
         }
-        res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-cache' }).end(buf);
+        res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'private, no-store' }).end(buf);
       });
       return;
     }
@@ -437,7 +438,7 @@ function serveStatic(req, res, pathname) {
       res.writeHead(200, {
         'Content-Type': MIME[ext] || 'application/octet-stream',
         'Content-Length': buf.length,
-        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+        'Cache-Control': 'private, no-store',
       });
       res.end(buf);
     });
@@ -452,16 +453,9 @@ async function requestHandler(req, res) {
   const parsed = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const pathname = parsed.pathname;
 
-  // 本地开发允许跨域（便于二次开发）
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204).end();
-    return;
-  }
-
   try {
+    if (await authGate(req, res, pathname, readBody, sendJson)) return;
+    if (req.method === 'OPTIONS') return void res.writeHead(204).end();
     if (pathname === '/api/search') return void (await handleSearch(req, res, parsed.searchParams));
     if (pathname === '/api/health') return void (await handleHealth(res));
     if (pathname === '/api/config') {

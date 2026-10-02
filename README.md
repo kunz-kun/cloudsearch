@@ -24,9 +24,22 @@ node server.js
 - Root Directory：仓库根目录（无需修改）
 - Node.js Version：**22.x** 或更新的受支持版本
 - Build Command：留空；Output Directory：`public`（由 `vercel.json` 配置）
-- 无需环境变量，直接点击 **Deploy**
+- 配置下方的 `ACCESS_PASSWORD_HASH` 和 `ACCESS_SESSION_SECRET` 环境变量后点击 **Deploy**
 
-静态页面由 Vercel 托管，`/api/*` 由 Node 函数处理；函数最长运行 120 秒，覆盖默认上游超时与一次重试。
+全部页面、静态文件和 `/api/*` 经过 Node 函数验证会话，避免通过默认域名或静态文件绕过密码；函数最长运行 120 秒。
+
+### 访问密码
+
+所有部署都需要配置服务端环境变量，缺失时返回 503，不会开放访问：
+
+- `ACCESS_PASSWORD_HASH`：`salt:hash`，salt 为 16 个随机字节的 hex，hash 为 Node `crypto.scryptSync(password, salt, 64)` 的 hex。
+- `ACCESS_SESSION_SECRET`：至少 32 字符的随机密钥，建议使用 32 个随机字节的 hex。
+
+仅在 Vercel 环境变量或本地 `.env.local` 保存这些值，不要提交仓库。Vercel 需要配置 Production 和 Preview；修改后重新部署。Node 20.6+ 本地可使用 `node --env-file=.env.local server.js`；Docker 通过 `--env-file .env.local` 注入。
+
+访问 `/login` 输入密码；会话有效 7 天，Cookie 为 HttpOnly、SameSite=Strict，Vercel 上同时为 Secure。首页“退出”按钮会清除当前浏览器会话。更换密码哈希或签名密钥并重新部署会使旧会话失效。
+
+连续输错 5 次会在当前函数实例内限制 1 分钟；实例间不共享计数。需要全局限速时应另行配置 WAF 或共享存储。此功能是共享密码，不区分用户账户。
 部署成功后访问首页、`/api/config`、`/api/health`，并执行一次搜索验证。连接 GitHub 后，推送 `main` 会自动更新生产部署。
 搜索缓存存放在函数实例内存中，冷启动或实例切换后会清空；第三方上游可用性以实际健康检查为准。
 本地与 Docker 的 `node server.js` 启动方式保持兼容。

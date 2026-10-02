@@ -4,6 +4,8 @@
 # 依赖
 node_modules/
 .vercel/
+.env.local
+.env.*.local
 package-lock.json
 
 # 运行时产物

@@ -4,6 +4,20 @@
 (function () {
   'use strict';
 
+  const originalFetch = window.fetch.bind(window);
+  async function fetch(url, options) {
+    const response = await originalFetch(url, options);
+    if (response.status === 401) window.location.replace('/login');
+    return response;
+  }
+  document.getElementById('logoutBtn').addEventListener('click', async function () {
+    try {
+      const response = await originalFetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('退出失败');
+      window.location.replace('/login');
+    } catch { alert('退出失败，请稍后重试。'); }
+  });
+
   /* ---------------- 网盘类型字典 ---------------- */
   const NETDISK = {
     quark: { name: '夸克网盘', short: '夸克', color: '#4e6ef2' },
