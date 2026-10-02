@@ -570,9 +570,7 @@
       '<button class="act-btn" data-copy="' + esc(item.url) + '" title="复制分享链接">' +
       '<svg viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="10.5" height="10.5" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M6.5 15H5.8A1.8 1.8 0 0 1 4 13.2V5.8A1.8 1.8 0 0 1 5.8 4h7.4A1.8 1.8 0 0 1 15 5.8v.7" stroke="currentColor" stroke-width="1.7"/></svg>' +
       '</button>' +
-      '<button class="act-btn primary" data-open="' + esc(item.url) + '" title="打开链接">' +
-      '<svg viewBox="0 0 24 24" fill="none"><path d="M14 5h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 5l-7.4 7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18.4 14.2v3.6a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V7.4a1.8 1.8 0 0 1 1.8-1.8h3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
-      '</button>' +
+      openLinkHtml(item.url, false) +
       '</div>' +
       '</article>'
     );
@@ -584,6 +582,18 @@
     '<svg viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="10.5" height="10.5" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M6.5 15H5.8A1.8 1.8 0 0 1 4 13.2V5.8A1.8 1.8 0 0 1 5.8 4h7.4A1.8 1.8 0 0 1 15 5.8v.7" stroke="currentColor" stroke-width="1.7"/></svg>';
   const ICON_OPEN =
     '<svg viewBox="0 0 24 24" fill="none"><path d="M14 5h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 5l-7.4 7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18.4 14.2v3.6a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V7.4a1.8 1.8 0 0 1 1.8-1.8h3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+
+  function openLinkHtml(rawUrl, small) {
+    const url = String(rawUrl || '').trim();
+    const cls = 'act-btn' + (small ? ' sm' : '') + ' primary';
+    if (/^https?:\/\//i.test(url)) {
+      return '<a class="' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" title="打开链接" aria-label="打开链接">' + ICON_OPEN + '</a>';
+    }
+    if (/^(magnet|ed2k):/i.test(url)) {
+      return '<button class="' + cls + '" data-download-copy="' + esc(url) + '" title="复制下载链接" aria-label="复制下载链接">' + ICON_COPY + '</button>';
+    }
+    return '<button class="' + cls + '" disabled title="链接格式不支持" aria-label="链接格式不支持">' + ICON_OPEN + '</button>';
+  }
 
   /** 资源卡：同一资源的多个网盘入口收在一张卡里 */
   function groupCardHtml(g, kw) {
@@ -605,7 +615,7 @@
             : '<span class="pwd-none">无需提取码</span>') +
           '<span class="link-acts">' +
           '<button class="act-btn sm" data-copy="' + esc(it.url) + '" title="复制链接">' + ICON_COPY + '</button>' +
-          '<button class="act-btn sm primary" data-open="' + esc(it.url) + '" title="打开链接">' + ICON_OPEN + '</button>' +
+          openLinkHtml(it.url, true) +
           '</span>' +
           '</div>'
         );
@@ -871,14 +881,9 @@
         copyText(cp.dataset.copy, cp.classList.contains('pwd-pill') ? '提取码已复制' : '链接已复制');
         return;
       }
-      const op = e.target.closest('[data-open]');
-      if (op) {
-        const url = op.dataset.open;
-        if (/^(magnet|ed2k):/i.test(url)) {
-          copyText(url, '磁力/电驴链接已复制');
-        } else {
-          window.open(url, '_blank', 'noopener');
-        }
+      const download = e.target.closest('[data-download-copy]');
+      if (download) {
+        copyText(download.dataset.downloadCopy, '下载链接已复制，请粘贴到迅雷等下载工具');
       }
     });
 

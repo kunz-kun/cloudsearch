@@ -429,6 +429,8 @@ a { color: inherit; text-decoration: none; }
 
 .card-actions { display: flex; align-items: center; gap: 6px; flex: none; align-self: center; }
 .act-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none;
   width: 34px; height: 34px; padding: 8px;
   border-radius: 10px;
   background: var(--surface-2);
